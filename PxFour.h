@@ -27,7 +27,8 @@ private:
     constexpr static float MOTOR_PORTS{6};
 
     std::string m_LaunchFileName{"./hardware/launch/px4.launch"};
-    std::string m_SatellitesCnt{" "};
+    std::string m_Mode{" "};
+    std::string m_SatellitesCnt{0};
 
     geometry_msgs::msg::Pose m_LocalPosition;
     geometry_msgs::msg::Quaternion m_Orientation;
@@ -41,13 +42,21 @@ private:
 
     uint32_t m_BaudRate{0};
 
+    uint16_t m_BrakeValue{100};
+    uint16_t m_BrakeForward{0};
+    uint16_t m_BrakeBack{0};
+    uint16_t m_wheelPort{7};
     uint16_t m_Port{0};
+
     int m_GpsFix{-1};
+
+
 
     bool m_Armed{false};
     bool m_IsMoving{false};
     bool m_WheelReverse{false};
     bool m_MovingForward{false};
+    bool m_Brake{false};
 
     std::chrono::time_point<std::chrono::system_clock> m_LastGpsTime;
     std::chrono::time_point<std::chrono::system_clock> m_MoveTime;
@@ -76,6 +85,8 @@ private:
 
 public:
 
+    std::vector<double> GetGps() const;
+
     void RunTick() override;
 
     void BeforeRun() override;
@@ -84,15 +95,37 @@ public:
 
     void PublishPoint();
 
-    void CrateFlightMission();
+    void CreateFlightMission();
 
-    void SetServo(float port, float pwm);
+    std::string SetServo(float port, float pwm);
+
+    std::string RepeatServo(float port, float pwm, int repeats = 1, int t = 1);
 
     void SetPointPositionLocal(float x = 0, float y = 0, float z = 0, float yaw = 0);
 
-    void UploadFlightMission();
+    void SetBrake(bool brake);
 
-    void Move(double speed);
+    void ToggleBrake();
+
+    double GetHeading() const;
+
+    double GetAltitude() const;
+
+    float GetCharge() const;
+
+    bool GetArmerd() const;
+
+    bool GetBrake() const;
+
+    int GetGpxFix() const;
+
+    std::string GetSatellitesCnt() const;
+
+    std::string GetMode() const;
+
+    std::string UploadFlightMission();
+
+    std::string Move(double speed);
 
     void Mover();
 
@@ -111,6 +144,10 @@ public:
     void LocalPositionCallback(const geometry_msgs::msg::PoseStamped&data);
 
     void SetMoveSettings(double speed);
+
+    void Reboot(bool ignoreArm = false);
+
+    void SetPointPositionGlobal(float lat = 0, float lon = 0, float alt = 0, float yaw = 0);
 };
 
 #endif //PX_FOUR_H
