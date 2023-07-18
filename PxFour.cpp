@@ -7,21 +7,43 @@ void PxFour::RunTick()
    // if((std::chrono::system_clock::now() - m_LastGpsTime).count() > 2)
 }
 
-void PxFour::UploadFlightMission()
+void PxFour::ToggleBrake()
 {
-    CrateFlightMission();
-
-    if(m_Armed) return;
-
+    m_Brake = !m_Brake;
+    Move(0);
 }
 
-void PxFour::Move(double speed)
+std::string PxFour::UploadFlightMission()
+{
+    //auto db = GetDB();
+
+    std::string result{" "};
+
+    CreateFlightMission();
+
+    if(m_Armed) return{};
+
+    try
+    {
+        //auto cm = create_service<mavros_msgs::msg::>("/mavros/cmd/command");
+    }
+
+    catch(std::exception&exception)
+    {
+        std::string logging = exception.what();
+        Log("Exception " + logging, ERROR_LEVEL_LOG);
+    }
+
+    Log("FMS upload result:  " + result, ERROR_LEVEL_LOG);
+    return result;
+}
+
+std::string PxFour::Move(double speed)
 {
     int int_speed = (int)speed;
 
     if(int_speed < - 10 || int_speed > 10)
-        return;
-
+        return{};
 
     float dir_value = m_WheelReverse ? -1 : 1;
     float step_up = std::floor((MAX_PWM - ZERO_PWM - 100) / 10);
@@ -30,6 +52,9 @@ void PxFour::Move(double speed)
     Log( "UP: " + std::to_string(step_up) + ", DOWN: " + std::to_string(step_down), INFO_LEVEL_LOG);
 
     float pwm;
+
+    std::string result{" "};
+
 
     if(int_speed > 0)
     {
@@ -49,9 +74,11 @@ void PxFour::Move(double speed)
     {
         if(m_Brake)
         {
-            auto brake_value = m_BrakeValue;
+            uint16_t brake_value = m_BrakeValue;
+
             if(m_MovingForward)
                 brake_value += m_BrakeForward;
+
             else
             {
                 brake_value += m_BrakeBack;
@@ -59,27 +86,59 @@ void PxFour::Move(double speed)
             }
             pwm += (brake_value * dir_value);
         }
-        auto res = SetServo();
+        result = SetServo(m_wheelPort,pwm);
     }
 
-    auto res = RepeatServo();
+    result = RepeatServo(m_wheelPort,pwm, 1, 2);
+
+    return result;
 }
 
-void PxFour::SetServo(float port, float pwm)
+std::string PxFour::RepeatServo(float port, float pwm, int repeats, int t)
 {
+    std::string res{" "};
+
     if(port <= MOTOR_PORTS)
-        return;
+        return "motor_port";
 
     try
     {
-        auto cm = create_service<mavros_msgs::msg::>("/mavros/cmd/command");
-        cm
+        //auto cm = create_service<mavros_msgs::msg::>("/mavros/cmd/command");
+        Log("Sending REPEAT_SERVO, port: " + std::to_string(port) + " pwm: " + std::to_string(pwm), INFO_LEVEL_LOG);
+
     }
 
     catch(std::exception&exception)
     {
-        Log("Unable to call mavros cmd service" + exception.what())
+        std::string logging = exception.what();
+        Log("Unable to call mavros cmd service " + logging, ERROR_LEVEL_LOG);
     }
+
+    return{};
+}
+
+std::string PxFour::SetServo(float port, float pwm)
+{
+    std::string res{" "};
+
+    if(port <= MOTOR_PORTS)
+        return "motor_port";
+
+    try
+    {
+        //auto cm = create_service<mavros_msgs::msg::>("/mavros/cmd/command");
+
+        Log("Sending SET_SERVO, port: " + std::to_string(port) + " pwm: " + std::to_string(pwm), INFO_LEVEL_LOG);
+
+    }
+
+    catch(std::exception&exception)
+    {
+        std::string logging = exception.what();
+        Log("Unable to call mavros cmd service " + logging, ERROR_LEVEL_LOG);
+    }
+
+    return {};
 }
 
 void PxFour::BeforeRun()
@@ -274,4 +333,50 @@ void PxFour::SetMoveSettings(double speed)
     m_MoveSpeed = speed;
     m_MoveTime = std::chrono::system_clock::now();
     Log("Set new move speed: " + std::to_string(speed), INFO_LEVEL_LOG);
+}
+
+void PxFour::CreateFlightMission()
+{
+
+}
+
+void PxFour::Reboot(bool ignoreArm)
+{
+    if(m_Armed && !ignoreArm)
+        return;
+
+    try
+    {
+        //auto cm = this->create_service<mavros_msgs::msg::CommandLong>("/mavros/cmd/command'");
+        Log("REBOOTING PX4", INFO_LEVEL_LOG);
+    }
+
+    catch(std::exception&exception)
+    {
+        std::string logging = exception.what();
+        Log("Unable to call mavros cmd service " + logging, ERROR_LEVEL_LOG);
+    }
+}
+
+void PxFour::SetPointPositionGlobal(float lat, float lon, float alt, float yaw)
+{
+//     auto message = mavros_msgs::msg::GlobalPositionTarget();
+//     message.header.stamp = this->get_clock()->now();
+//     message.altitude = alt;
+//     message.latitude = lat;
+//     message.yaw = yaw;
+//     message.type_mask = 3064;
+//     message.coordinate_frame = 6;
+//     m_GlobalTarget = message;
+}
+
+std::vector<double> PxFour::GetGps() const
+{
+    return m_Gps;
+}
+
+void PxFour::SetBrake(bool brake)
+{
+    m_Brake = brake;
+    Move(0);
 }
